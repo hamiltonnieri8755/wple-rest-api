@@ -352,20 +352,42 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 
 	}
 
-	// ================================ PUT /accounts/id/disable ================================ 
+	// ================================ PUT /accounts/id/update ================================ 
 
 	/**
-	 * Disable a single account
+	 * Update account details from ebay
 	 *
 	 * @param WP_REST_Request $request Full details about the request
 	 * @return WP_Error|WP_REST_Response
 	 */
-	public function disable_account( $request ) {
+	public function update_account( $request ) {
 
 		$account = new WPLE_eBayAccount( $request['id'] );
-		$account->active = 0;
-		$account->update();
+		if ( ! $account ) return;
 
+		// update user details
+		$account->updateUserDetails();
+		
+		return true;		
+	}
+
+	// ================================ PUT /accounts/id/fetchtoken ================================ 
+
+	/**
+	 * Update account details from ebay
+	 *
+	 * @param WP_REST_Request $request Full details about the request
+	 * @return WP_Error|WP_REST_Response
+	 */
+	public function update_account( $request ) {
+
+		$account = new WPLE_eBayAccount( $request['id'] );
+		if ( ! $account ) return;
+
+		// update user details
+		$account->updateUserDetails();
+		
+		return true;		
 	}
 
 }
