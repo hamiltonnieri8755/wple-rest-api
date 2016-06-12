@@ -326,7 +326,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 		$args['locked']       = $request['locked'];
 		$args['profile_id']   = $request['profile_id'];
 		
-		$id = (int) $request['id'];
+		$id = $request['id'];
 
 		global $wpdb;
 
