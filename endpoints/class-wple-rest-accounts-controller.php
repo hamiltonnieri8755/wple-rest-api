@@ -21,6 +21,8 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	 */
 	protected $rest_base;
 
+	protected $fieldnames;
+
 	/**
 	* __construct
 	* 
@@ -31,8 +33,33 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	* @access public
 	*/
 	public function __construct() {
-		$this->namespace = 'wplister';
-		$this->rest_base = 'accounts';
+		$this->namespace  = 'wplister';
+		$this->rest_base  = 'accounts';
+		$this->fieldnames = array(
+			'title',
+			'site_id',
+			'site_code',
+			'active',
+			'sandbox_mode',
+			'token',
+			'user_name',
+			'user_details',
+			'valid_until',
+			'ebay_motors',
+			'oosc_mode',
+			'seller_profiles',
+			'shipping_profiles',
+			'payment_profiles',
+			'return_profiles',
+			'shipping_discount_profiles',
+			'categories_map_ebay',
+			'categories_map_store',
+			'default_ebay_category_id',
+			'paypal_email',
+			'sync_orders',
+			'sync_products',
+			'last_orders_sync',
+		);
 	}
 
 	/**
@@ -49,9 +76,9 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
-				'callback'        => array( $this, 'create_accounts' ),
-				'permission_callback' => array( $this, 'create_accounts_permissions_check' ),
-				'validation_callback' => array( $this, 'create_accounts_validation_callback' )
+				'callback'        => array( $this, 'create_account' ),
+				'permission_callback' => array( $this, 'create_account_permission_callback' ),
+				'validation_callback' => array( $this, 'create_account_validation_callback' )
 			)
 		) );
 
@@ -59,19 +86,69 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_account' ),
-				'permission_callback' => array( $this, 'get_account_permissions_check' )
+				'permission_callback' => array( $this, 'get_account_permission_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'update_account' ),
-				'permission_callback' => array( $this, 'update_account_permissions_check' ),
+				'permission_callback' => array( $this, 'update_account_permission_callback' ),
 			),
 			array(
 				'methods'  => WP_REST_Server::DELETABLE,
 				'callback' => array( $this, 'delete_account' ),
-				'permission_callback' => array( $this, 'delete_account_permissions_check' )
+				'permission_callback' => array( $this, 'delete_account_permission_callback' )
 			)
 		) );
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/userdetails', array(
+			array(
+				'methods'         => WP_REST_Server::EDITABLE,
+				'callback'        => array( $this, 'update_userdetails' ),
+				'permission_callback' => array( $this, 'update_account_permission_callback' )
+			)
+		) );
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/enable', array(
+			array(
+				'methods'         => WP_REST_Server::EDITABLE,
+				'callback'        => array( $this, 'enable_account' ),
+				'permission_callback' => array( $this, 'update_account_permission_callback' )
+			)
+		) );	
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/disable', array(
+			array(
+				'methods'         => WP_REST_Server::EDITABLE,
+				'callback'        => array( $this, 'disable_account' ),
+				'permission_callback' => array( $this, 'update_account_permission_callback' )
+			)
+		) );
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/makedefault', array(
+			array(
+				'methods'         => WP_REST_Server::EDITABLE,
+				'callback'        => array( $this, 'make_default' ),
+				'permission_callback' => array( $this, 'update_account_permission_callback' )
+			)
+		) );
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/fetchtoken', array(
+			array(
+				'methods'         => WP_REST_Server::EDITABLE,
+				'callback'        => array( $this, 'fetch_token' ),
+				'permission_callback' => array( $this, 'update_account_permission_callback' )
+			)
+		) );
+
+		register_rest_route( $this->namespace, '/' . $this->rest_base . '/dev', array(
+			array(
+				'methods'         => WP_REST_Server::CREATABLE,
+				'callback'        => array( $this, 'add_devaccount' ),
+				'permission_callback' => array( $this, 'create_account_permission_callback' ),
+				'validation_callback' => array( $this, 'create_account_validation_callback' )
+			)
+		) );
+
 	}
 
 	// ================================ GET /accounts ================================ 
@@ -269,7 +346,45 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function create_account( $request ) {
-		return true;
+
+		// call FetchToken
+		$this->initEC();
+		$ebay_token = $this->EC->doFetchToken( false );
+		$this->EC->closeEbay();
+		echo 1;exit;
+		// check if we have a token
+		if ( $ebay_token ) {
+			
+			// create new account
+			$account = new WPLE_eBayAccount();
+			// $account->title     = stripslashes( $_POST['wplister_account_title'] );
+			$account->title        = $request['title'];
+			$account->site_id      = $request['site_id'];
+			$account->site_code    = EbayController::getEbaySiteCode( $request['site_code'] );
+			$account->sandbox_mode = $request['sandbox_mode'];
+			$account->token        = $ebay_token;
+			$account->active       = 1;
+			$account->add();
+
+			// set enabled flag for site
+			$site = WPLE_eBaySite::getSiteObj($account->site_id);
+			$site->enabled = 1;
+			$site->update();	
+
+			// update user details
+			$account->updateUserDetails();
+
+			// set default account automatically
+			if ( ! get_option( 'wplister_default_account_id' ) ) {
+				update_option( 'wplister_default_account_id', $account->id );
+				$this->make_default( array( "id" => $account->id ) );
+			}
+
+			return true;
+		} else {
+			return false;
+		}
+		
 	}
 
 	// ================================ PATCH /accounts/id ================================ 
@@ -291,6 +406,23 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function update_account( $request ) {
+
+		global $wpdb;
+
+		$args = array();
+
+		foreach ( $this->fieldnames as $field ) {
+			if ( isset($request[$field]) ) {
+				$args[$field] = $request[$field];
+			}
+		}
+
+		$account = new WPLE_eBayAccount( $request['id'] );
+
+		if ( sizeof( $args ) > 0 ) {
+			$result = $wpdb->update( "{$wpdb->prefix}ebay_accounts", $args, array( 'id' => $account->id ) );
+		}
+
 		return true;
 	}
 
@@ -334,6 +466,8 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 		$account->active = 1;
 		$account->update();
 
+		return true;
+
 	}
 
 	// ================================ PUT /accounts/id/disable ================================ 
@@ -350,17 +484,19 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 		$account->active = 0;
 		$account->update();
 
+		return true;
+
 	}
 
-	// ================================ PUT /accounts/id/update ================================ 
+	// ================================ PUT /accounts/id/userdetails ================================ 
 
 	/**
-	 * Update account details from ebay
+	 * Update user details from ebay
 	 *
 	 * @param WP_REST_Request $request Full details about the request
 	 * @return WP_Error|WP_REST_Response
 	 */
-	public function update_account( $request ) {
+	public function update_userdetails( $request ) {
 
 		$account = new WPLE_eBayAccount( $request['id'] );
 		if ( ! $account ) return;
@@ -368,26 +504,98 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 		// update user details
 		$account->updateUserDetails();
 		
-		return true;		
+		return true;
+	}
+
+	// ================================ PUT /accounts/id/makedefault ================================ 
+
+	/**
+	 * Make a specific account default
+	 *
+	 * @param WP_REST_Request $request Full details about the request
+	 * @return WP_Error|WP_REST_Response
+	 */
+	public function make_default( $request ) {
+
+		$account = new WPLE_eBayAccount( $request['id'] );
+		if ( ! $account ) return;
+
+		// update default account
+		update_option( 'wplister_default_account_id', 			$account->id );
+
+		// backwards compatibility
+		update_option( 'wplister_ebay_site_id', 				$account->site_id );
+		update_option( 'wplister_ebay_token', 					$account->token );
+		update_option( 'wplister_ebay_token_userid', 			$account->user_name );
+		update_option( 'wplister_sandbox_enabled', 				$account->sandbox_mode );
+		update_option( 'wplister_ebay_token_expirationtime', 	$account->valid_until );
+		update_option( 'wplister_enable_ebay_motors', 			$account->ebay_motors ); // deprecated
+		update_option( 'wplister_ebay_seller_profiles_enabled', $account->seller_profiles );
+		update_option( 'wplister_default_ebay_category_id', 	$account->default_ebay_category_id );
+		update_option( 'wplister_paypal_email', 				$account->paypal_email );
+		update_option( 'wplister_oosc_mode', 					$account->oosc_mode );
+		update_option( 'wplister_ebay_user', 					maybe_unserialize( $account->user_details ) );
+		update_option( 'wplister_categories_map_ebay', 			maybe_unserialize( $account->categories_map_ebay ) );
+		update_option( 'wplister_categories_map_store', 		maybe_unserialize( $account->categories_map_store ) );
+
+		return true;
 	}
 
 	// ================================ PUT /accounts/id/fetchtoken ================================ 
 
 	/**
-	 * Update account details from ebay
+	 * Fetch token for this account
 	 *
 	 * @param WP_REST_Request $request Full details about the request
 	 * @return WP_Error|WP_REST_Response
 	 */
-	public function update_account( $request ) {
+	public function fetch_token( $request ) {
 
-		$account = new WPLE_eBayAccount( $request['id'] );
-		if ( ! $account ) return;
+		$account_id = $request['id'];
 
-		// update user details
-		$account->updateUserDetails();
-		
-		return true;		
+		// call FetchToken
+		$this->initEC( $account_id );
+		echo $account_id;
+		$ebay_token = $this->EC->doFetchToken( $account_id );
+		$this->EC->closeEbay();
+
+		// check if we have a token
+		if ( $ebay_token ) {
+
+			// update token expiry date (and other details)
+			$this->updateAccount( $account_id );
+
+			// update legacy option
+			update_option( 'wplister_ebay_token_is_invalid', false );
+
+			return true;
+		} else {
+			return false;
+		}
+	
+	}
+
+	// ================================ POST /accounts/dev ================================ 
+
+	/**
+	 * Add Developer Account
+	 *
+	 * @param WP_REST_Request $request Full details about the request
+	 * @return WP_Error|WP_REST_Response
+	 */
+	public function add_devaccount( $request ) {
+
+		$account = new WPLE_eBayAccount();
+
+		$account->title        = 'New Account (DEV)';
+		$account->active       = 0;
+		$account->site_id      = 0;
+		$account->site_code    = 'US';
+		$account->user_name    = 'NONE';
+		$account->sandbox_mode = 1;
+		$account->ebay_motors  = 0;
+
+		return $account->add();
 	}
 
 }
