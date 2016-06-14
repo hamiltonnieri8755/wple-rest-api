@@ -351,7 +351,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 		$this->initEC();
 		$ebay_token = $this->EC->doFetchToken( false );
 		$this->EC->closeEbay();
-		echo 1;exit;
+
 		// check if we have a token
 		if ( $ebay_token ) {
 			
@@ -380,9 +380,9 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 				$this->make_default( array( "id" => $account->id ) );
 			}
 
-			return true;
+			//return true;
 		} else {
-			return false;
+			//return false;
 		}
 		
 	}
@@ -555,7 +555,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 
 		// call FetchToken
 		$this->initEC( $account_id );
-		echo $account_id;
 		$ebay_token = $this->EC->doFetchToken( $account_id );
 		$this->EC->closeEbay();
 
