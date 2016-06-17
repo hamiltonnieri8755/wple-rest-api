@@ -176,7 +176,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 
 		} elseif ( isset($_SERVER['HTTP_AUTHORIZATION']) ) {
 
-		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic')===0)
+		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic') === 0 )
 		        list($username,$password) = explode(':',base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
 
 		}
@@ -220,8 +220,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function get_accounts( $request ) {
-		var_dump($request->get_headers());
-		exit;
+		
 		// Get Params
 		$args                 = array();
 		$args['fields']       = explode( ",", $request['fields'] );

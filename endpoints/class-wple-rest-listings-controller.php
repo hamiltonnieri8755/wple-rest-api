@@ -29,20 +29,6 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	protected $adjustable_fields;
 
 	/**
-	 * Username 
-	 *
-	 * @var string
-	 */
-	protected $username;
-
-	/**
-	 * Password 
-	 *
-	 * @var string
-	 */
-	protected $password;
-
-	/**
 	* __construct
 	* 
 	* Builds the WPL_REST_Listings_Controller
@@ -221,7 +207,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 
 		} elseif ( isset($_SERVER['HTTP_AUTHORIZATION']) ) {
 
-		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic')===0)
+		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic') === 0 )
 		        list($username,$password) = explode(':',base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
 
 		}
