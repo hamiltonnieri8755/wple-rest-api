@@ -29,6 +29,20 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	protected $adjustable_fields;
 
 	/**
+	 * Username 
+	 *
+	 * @var string
+	 */
+	protected $username;
+
+	/**
+	 * Password 
+	 *
+	 * @var string
+	 */
+	protected $password;
+
+	/**
 	* __construct
 	* 
 	* Builds the WPL_REST_Listings_Controller
@@ -52,13 +66,13 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_listings' ),
-				'permission_callback' => array( $this, 'get_listings_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' ),
 				'validation_callback' => array( $this, 'get_listings_validation_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'create_listing' ),
-				'permission_callback' => array( $this, 'create_listing_permissions_check' ),
+				'permission_callback' => array( $this, 'prepare_listings_permission_callback' ),
 				'validation_callback' => array( $this, 'create_listing_validation_callback' )
 			)
 		) );
@@ -67,17 +81,17 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_listing' ),
-				'permission_callback' => array( $this, 'get_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'update_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' ),
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' ),
 			),
 			array(
 				'methods'  => WP_REST_Server::DELETABLE,
 				'callback' => array( $this, 'delete_listing' ),
-				'permission_callback' => array( $this, 'delete_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -85,7 +99,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'verify_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -93,7 +107,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'revise_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -101,7 +115,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'publish_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'publish_listings_permission_callback' )
 			)
 		) );
 
@@ -109,7 +123,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'end_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -117,7 +131,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'relist_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -125,7 +139,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'lock_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -133,7 +147,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'unlock_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -141,7 +155,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'reapply_profile2listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -149,7 +163,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'clear_eps' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -157,7 +171,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'reset_status' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -165,7 +179,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'archive_listing' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -173,7 +187,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'cancel_schedule' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
@@ -181,23 +195,87 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'update_from_ebay' ),
-				'permission_callback' => array( $this, 'update_listing_permissions_check' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
 			)
 		) );
 
 	}
 
-	// ================================ GET /listings ================================ 
+	// ============================= Permission helper / callbacks ============================
 
 	/**
-	 * Check if a given request has access to read /listings
+	 * Listings endpoint permission helper
+	 *
+	 * @param  WP_REST_Request $request Full details about the request, capability
+	 * @return boolean
+	 */
+	public function listings_permission_helper( $capability ) {
+
+		$username = null;
+		$password = null;
+
+		if ( isset($_SERVER['PHP_AUTH_USER']) ) {
+
+		    $username = $_SERVER['PHP_AUTH_USER'];
+		    $password = $_SERVER['PHP_AUTH_PW'];
+
+		} elseif ( isset($_SERVER['HTTP_AUTHORIZATION']) ) {
+
+		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic')===0)
+		        list($username,$password) = explode(':',base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
+
+		}
+
+		$user = wp_authenticate( $username, $password );
+		
+		if ( is_wp_error($user) ) {
+
+			// Invalid Username and Password
+			return false;
+
+		} else {
+
+			// Valid Username and Password, Now check wplister ebay capabilities for this user
+			if ( $user->has_cap($capability) )
+				return true;
+			else 
+				return false;
+
+		}
+
+	}
+
+	/**
+	 * Check if a given request has access to manage ebay listings
 	 *
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function get_listings_permission_callback( $request ) {
-		return true;
+	public function manage_listings_permission_callback( $request ) {
+		return $this->listings_permission_helper( 'manage_ebay_listings' );
 	}
+
+	/**
+	 * Check if a given request has access to create /listings
+	 *
+	 * @param  WP_REST_Request $request Full details about the request
+	 * @return WP_Error|boolean
+	 */
+	public function prepare_listings_permission_callback( $request ) {
+		return $this->listings_permission_helper( 'prepare_ebay_listings' );
+	}
+
+	/**
+	 * Check if a given request has access to create /listings
+	 *
+	 * @param  WP_REST_Request $request Full details about the request
+	 * @return WP_Error|boolean
+	 */
+	public function publish_listings_permission_callback( $request ) {
+		return $this->listings_permission_helper( 'publish_ebay_listings' );
+	}
+
+	// ================================ GET /listings ================================ 
 
 	/**
 	 * Check if a given request is correct
@@ -216,7 +294,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function get_listings( $request ) {
-		
+
 		// Get Params
 		$args                 = array();
 		$args['fields']       = explode( ",", $request['fields'] );
@@ -294,16 +372,6 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	}
 
 	// ================================ GET /listings/id ================================ 
-
-	/**
-	 * Check if a given request has access to get a listing
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function get_listing_permissions_check( $request ) {
-		return true;
-	}
 
 	/**
 	 * Get a single listing
@@ -399,16 +467,6 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function create_listing_permissions_check( $request ) {
-		return true;
-	}
-
-	/**
-	 * Check if a given request has access to create /listings
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
 	public function create_listing_validation_callback( $request ) {
 		return true;
 	}
@@ -448,16 +506,6 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	}
 
 	// ================================ PATCH /listings/id ================================ 
-
-	/**
-	 * Check if a given request has access to update a listing
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function update_listing_permissions_check( $request ) {
-		return true;
-	}
 
 	/**
 	 * Update a single listing
@@ -755,17 +803,7 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 
 	}
 
-	// ================================ DELETE /listings/id ================================ 
-
-	/**
-	 * Check if a given request has access to delete a listing
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function delete_listing_permissions_check( $request ) {
-		return true;
-	}
+	// ================================ DELETE /listings/id ================================
 
 	/**
 	 * Delete a single listing

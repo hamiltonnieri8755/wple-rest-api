@@ -44,13 +44,13 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_profiles' ),
-				'permission_callback' => array( $this, 'get_profiles_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' ),
 				'validation_callback' => array( $this, 'get_profiles_validation_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'create_profile' ),
-				'permission_callback' => array( $this, 'create_profile_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' ),
 				'validation_callback' => array( $this, 'create_profile_validation_callback' )
 			)
 		) );
@@ -59,17 +59,17 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_profile' ),
-				'permission_callback' => array( $this, 'get_profile_permission_callback' )
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'update_profile' ),
-				'permission_callback' => array( $this, 'update_profile_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' ),
 			),
 			array(
 				'methods'  => WP_REST_Server::DELETABLE,
 				'callback' => array( $this, 'delete_profile' ),
-				'permission_callback' => array( $this, 'delete_profile_permission_callback' )
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' )
 			)
 		) );
 
@@ -77,13 +77,13 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'duplicate_profile' ),
-				'permission_callback' => array( $this, 'update_profile_permission_callback' )
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' )
 			)
 		) );
 
 	}
 
-	// ================================ GET /profiles ================================ 
+	// ============================= Permission helper / callbacks ============================
 
 	/**
 	 * Check if a given request has access to read /profiles
@@ -91,9 +91,43 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function get_profiles_permission_callback( $request ) {
-		return true;
+	public function manage_profiles_permission_callback( $request ) {
+		
+		$username = null;
+		$password = null;
+
+		if ( isset($_SERVER['PHP_AUTH_USER']) ) {
+
+		    $username = $_SERVER['PHP_AUTH_USER'];
+		    $password = $_SERVER['PHP_AUTH_PW'];
+
+		} elseif ( isset($_SERVER['HTTP_AUTHORIZATION']) ) {
+
+		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic')===0)
+		        list($username,$password) = explode(':',base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
+
+		}
+
+		$user = wp_authenticate( $username, $password );
+		
+		if ( is_wp_error($user) ) {
+
+			// Invalid Username and Password
+			return false;
+
+		} else {
+
+			// Valid Username and Password, Now check wplister ebay capabilities for this user
+			if ( $user->has_cap('manage_ebay_listings') )
+				return true;
+			else 
+				return false;
+
+		}
+
 	}
+
+	// ================================ GET /profiles ================================ 
 
 	/**
 	 * Check if a given request is correct
@@ -180,16 +214,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	}
 
 	// ================================ GET /profiles/id ================================ 
-
-	/**
-	 * Check if a given request has access to read /profiles/id
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function get_profile_permission_callback( $request ) {
-		return true;
-	}
 
 	/**
 	 * Check if a given request is correct
@@ -285,16 +309,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function create_profile_permission_callback( $request ) {
-		return true;
-	}
-
-	/**
-	 * Check if a given request has access to create /profiles
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
 	public function create_profile_validation_callback( $request ) {
 		return true;
 	}
@@ -362,16 +376,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	// ================================ PATCH /profiles/id ================================ 
 
 	/**
-	 * Check if a given request has access to update a profile
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function update_profile_permission_callback( $request ) {
-		return true;
-	}
-
-	/**
 	 * Update a single profile
 	 *
 	 * @param WP_REST_Request $request Full details about the request
@@ -435,16 +439,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	}
 
 	// ================================ DELETE /profiles/id ================================ 
-
-	/**
-	 * Check if a given request has access to delete a profile
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function delete_profile_permission_callback( $request ) {
-		return true;
-	}
 
 	/**
 	 * Delete a single profile

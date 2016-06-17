@@ -21,6 +21,11 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	 */
 	protected $rest_base;
 
+	/**
+	 * Attribute keys of account
+	 *
+	 * @var string
+	 */
 	protected $fieldnames;
 
 	/**
@@ -71,13 +76,13 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_accounts' ),
-				'permission_callback' => array( $this, 'get_accounts_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
 				'validation_callback' => array( $this, 'get_accounts_validation_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'create_account' ),
-				'permission_callback' => array( $this, 'create_account_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
 				'validation_callback' => array( $this, 'create_account_validation_callback' )
 			)
 		) );
@@ -86,17 +91,17 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_account' ),
-				'permission_callback' => array( $this, 'get_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			),
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'update_account' ),
-				'permission_callback' => array( $this, 'update_account_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
 			),
 			array(
 				'methods'  => WP_REST_Server::DELETABLE,
 				'callback' => array( $this, 'delete_account' ),
-				'permission_callback' => array( $this, 'delete_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );
 
@@ -104,7 +109,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'update_userdetails' ),
-				'permission_callback' => array( $this, 'update_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );
 
@@ -112,7 +117,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'enable_account' ),
-				'permission_callback' => array( $this, 'update_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );	
 
@@ -120,7 +125,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'disable_account' ),
-				'permission_callback' => array( $this, 'update_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );
 
@@ -128,7 +133,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'make_default' ),
-				'permission_callback' => array( $this, 'update_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );
 
@@ -136,7 +141,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
 				'callback'        => array( $this, 'fetch_token' ),
-				'permission_callback' => array( $this, 'update_account_permission_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );
 
@@ -144,24 +149,59 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'add_devaccount' ),
-				'permission_callback' => array( $this, 'create_account_permission_callback' ),
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
 				'validation_callback' => array( $this, 'create_account_validation_callback' )
 			)
 		) );
 
 	}
 
-	// ================================ GET /accounts ================================ 
+	// ============================= Permission callbacks ============================
 
 	/**
-	 * Check if a given request has access to read /accounts
+	 * Check if a given request has access to manage accounts
 	 *
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function get_accounts_permission_callback( $request ) {
-		return true;
+	public function manage_accounts_permission_callback( $request ) {
+		
+		$username = null;
+		$password = null;
+
+		if ( isset($_SERVER['PHP_AUTH_USER']) ) {
+
+		    $username = $_SERVER['PHP_AUTH_USER'];
+		    $password = $_SERVER['PHP_AUTH_PW'];
+
+		} elseif ( isset($_SERVER['HTTP_AUTHORIZATION']) ) {
+
+		    if ( strpos(strtolower($_SERVER['HTTP_AUTHORIZATION']),'basic')===0)
+		        list($username,$password) = explode(':',base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
+
+		}
+
+		$user = wp_authenticate( $username, $password );
+		
+		if ( is_wp_error($user) ) {
+
+			// Invalid Username and Password
+			return false;
+
+		} else {
+
+			// Valid Username and Password, Now check wplister ebay capabilities for this user
+			if ( $user->has_cap('manage_ebay_options') )
+				return true;
+			else 
+				return false;
+
+		}
+
 	}
+
+
+	// ================================ GET /accounts ================================ 
 
 	/**
 	 * Check if a given request is correct
@@ -174,13 +214,14 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	}
 
 	/**
-	 * Get a collection of profiles
+	 * Get a collection of accounts
 	 *
 	 * @param WP_REST_Request $request Full data about the request.
 	 * @return WP_Error|WP_REST_Response
 	 */
 	public function get_accounts( $request ) {
-
+		var_dump($request->get_headers());
+		exit;
 		// Get Params
 		$args                 = array();
 		$args['fields']       = explode( ",", $request['fields'] );
@@ -252,16 +293,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	// ================================ GET /accounts/id ================================ 
 
 	/**
-	 * Check if a given request has access to read /accounts/id
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function get_account_permission_callback( $request ) {
-		return true;
-	}
-
-	/**
 	 * Check if a given request is correct
 	 *
 	 * @param  WP_REST_Request $request Full details about the request
@@ -272,7 +303,7 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	}
 
 	/**
-	 * Get a specific profile
+	 * Get a specific account
 	 *
 	 * @param WP_REST_Request $request Full data about the request.
 	 * @return WP_Error|WP_REST_Response
@@ -318,16 +349,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	}
 
 	// ================================ POST /accounts ================================ 
-
-	/**
-	 * Check if a given request has access to create /accounts
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function create_account_permission_callback( $request ) {
-		return true;
-	}
 
 	/**
 	 * Check if a given request has access to create /accounts
@@ -390,16 +411,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	// ================================ PATCH /accounts/id ================================ 
 
 	/**
-	 * Check if a given request has access to update an account
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function update_account_permission_callback( $request ) {
-		return true;
-	}
-
-	/**
 	 * Update a single account
 	 *
 	 * @param WP_REST_Request $request Full details about the request
@@ -427,16 +438,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	}
 
 	// ================================ DELETE /accounts/id ================================ 
-
-	/**
-	 * Check if a given request has access to delete a specific account
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function delete_account_permission_callback( $request ) {
-		return true;
-	}
 
 	/**
 	 * Delete a single account
