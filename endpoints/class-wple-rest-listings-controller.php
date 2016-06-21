@@ -29,6 +29,14 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 	protected $adjustable_fields;
 
 	/**
+	 * Array of listing fields 
+	 *
+	 * @var string
+	 */
+	protected $listing_fields;
+
+
+	/**
 	* __construct
 	* 
 	* Builds the WPL_REST_Listings_Controller
@@ -41,6 +49,40 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 		$this->namespace = 'wplister';
 		$this->rest_base = 'listings';
 		$this->adjustable_fields = array( "auction_title", "relist_date", "status", "locked", "profile_id", "post_id", "account_id", "site_id" );
+		
+		$this->listing_fields = array( 
+			"id",
+			"ebay_id",
+			"auction_title",
+			"auction_type",
+			"listing_duration",
+			"date_created",
+			"date_published",
+			"date_finished",
+			"end_date",
+			"relist_date",
+			"price",
+			"quantity",
+			"quantity_sold",
+			"status",
+			"locked",
+			"details",
+			"variations",
+			"ViewItemURL",
+			"GalleryURL",
+			"post_content",
+			"post_id",
+			"parent_id",
+			"profile_id",
+			"profile_data",
+			"template",
+			"fees",
+			"history",
+			"last_errors",
+			"eps",
+			"account_id",
+			"site_id"	
+		);
 	}
 
 	/**
@@ -53,13 +95,15 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_listings' ),
 				'permission_callback' => array( $this, 'manage_listings_permission_callback' ),
-				'validation_callback' => array( $this, 'get_listings_validation_callback' )
+				'args' => array( 'fields' => array( 'validate_callback' => array( $this, 'validate_listing_fields' ) ),
+								 'orderby' => array( 'validate_callback' => array( $this, 'validate_listing_fields' ) ),
+								 'page' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ),
+								 'per_page' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ) )
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'create_listing' ),
-				'permission_callback' => array( $this, 'prepare_listings_permission_callback' ),
-				'validation_callback' => array( $this, 'create_listing_validation_callback' )
+				'permission_callback' => array( $this, 'prepare_listings_permission_callback' )
 			)
 		) );
 
@@ -67,7 +111,8 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_listing' ),
-				'permission_callback' => array( $this, 'manage_listings_permission_callback' )
+				'permission_callback' => array( $this, 'manage_listings_permission_callback' ),
+				'args' => array( 'fields' => array( 'validate_callback' => array( $this, 'validate_listing_fields' ) ) )
 			),
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
@@ -261,17 +306,37 @@ class WPLE_REST_Listings_Controller extends WPL_Core {
 		return $this->listings_permission_helper( 'publish_ebay_listings' );
 	}
 
-	// ================================ GET /listings ================================ 
+	// ============================= Validation Callback ============================= 
 
 	/**
-	 * Check if a given request is correct
+	 * Check if a given fields is correct
 	 *
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function get_listings_validation_callback( $request ) {
+	public function validate_listing_fields( $param, $request, $key ) {
+		$fields = explode( ",", $param );
+		foreach ( $fields as $field ) {
+			if ( ! in_array($field, $this->listing_fields) )
+				return false;
+		}
 		return true;
 	}
+
+	/**
+	 * Check if a given fields is numeric
+	 *
+	 * @param  WP_REST_Request $request Full details about the request
+	 * @return WP_Error|boolean
+	 */
+	public function validate_numeric_field( $param, $request, $key ) {
+		if ( is_numeric($param) )
+			return true;
+		else 
+			return false;
+	}
+
+	// ================================ GET /listings ================================
 
 	/**
 	 * Get a collection of listings

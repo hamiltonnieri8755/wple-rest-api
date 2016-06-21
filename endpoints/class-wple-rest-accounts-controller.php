@@ -77,13 +77,17 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_accounts' ),
 				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
-				'validation_callback' => array( $this, 'get_accounts_validation_callback' )
+				'args' => array( 'fields' => array( 'validate_callback' => array( $this, 'validate_account_fields' ) ),
+								 'orderby' => array( 'validate_callback' => array( $this, 'validate_account_fields' ) ),
+								 'page' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ),
+								 'per_page' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ) )
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'create_account' ),
 				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
-				'validation_callback' => array( $this, 'create_account_validation_callback' )
+				'args' => array( 'sandbox_mode' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ),
+								 'active' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ) )
 			)
 		) );
 
@@ -137,20 +141,11 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 			)
 		) );
 
-		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/fetchtoken', array(
-			array(
-				'methods'         => WP_REST_Server::EDITABLE,
-				'callback'        => array( $this, 'fetch_token' ),
-				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
-			)
-		) );
-
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/dev', array(
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'add_devaccount' ),
-				'permission_callback' => array( $this, 'manage_accounts_permission_callback' ),
-				'validation_callback' => array( $this, 'create_account_validation_callback' )
+				'permission_callback' => array( $this, 'manage_accounts_permission_callback' )
 			)
 		) );
 
@@ -200,18 +195,39 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 
 	}
 
-
-	// ================================ GET /accounts ================================ 
+	// ============================= Validation Callback ============================= 
 
 	/**
-	 * Check if a given request is correct
+	 * Check if a given fields is correct
 	 *
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function get_accounts_validation_callback( $request ) {
+	public function validate_account_fields( $param, $request, $key ) {
+		$fields = explode( ",", $param );
+		foreach ( $fields as $field ) {
+			if ( ! in_array($field, $this->fieldnames) && $field != 'id' ) // fieldnames exclude id field
+				return false;
+		}
 		return true;
 	}
+
+	/**
+	 * Check if a given fields is numeric
+	 *
+	 * @param  WP_REST_Request $request Full details about the request
+	 * @return WP_Error|boolean
+	 */
+	public function validate_numeric_field( $param, $request, $key ) {
+
+		if ( is_numeric($param) )
+			return true;
+		else 
+			return false;
+
+	}
+
+	// ================================ GET /accounts ================================ 
 
 	/**
 	 * Get a collection of accounts
@@ -292,16 +308,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	// ================================ GET /accounts/id ================================ 
 
 	/**
-	 * Check if a given request is correct
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function get_account_validation_callback( $request ) {
-		return true;
-	}
-
-	/**
 	 * Get a specific account
 	 *
 	 * @param WP_REST_Request $request Full data about the request.
@@ -350,16 +356,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	// ================================ POST /accounts ================================ 
 
 	/**
-	 * Check if a given request has access to create /accounts
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function create_account_validation_callback( $request ) {
-		return true;
-	}
-
-	/**
 	 * Create an account
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
@@ -367,43 +363,47 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 	 */
 	public function create_account( $request ) {
 
-		// call FetchToken
-		$this->initEC();
-		$ebay_token = $this->EC->doFetchToken( false );
-		$this->EC->closeEbay();
 
-		// check if we have a token
-		if ( $ebay_token ) {
-			
-			// create new account
-			$account = new WPLE_eBayAccount();
-			// $account->title     = stripslashes( $_POST['wplister_account_title'] );
-			$account->title        = $request['title'];
-			$account->site_id      = $request['site_id'];
-			$account->site_code    = EbayController::getEbaySiteCode( $request['site_code'] );
+		// create new account
+		$account = new WPLE_eBayAccount();
+
+		if ( isset($request['title']) )
+			$account->title = $request['title'];
+
+		if ( isset($request['site_id']) )
+			$account->site_id = $request['site_id'];
+
+		if ( isset($request['site_code']) )
+			$account->site_code = EbayController::getEbaySiteCode( $request['site_code'] );
+
+		if ( isset($request['sandbox_mode']) )
 			$account->sandbox_mode = $request['sandbox_mode'];
-			$account->token        = $ebay_token;
-			$account->active       = 1;
-			$account->add();
 
-			// set enabled flag for site
-			$site = WPLE_eBaySite::getSiteObj($account->site_id);
-			$site->enabled = 1;
-			$site->update();	
+		if ( isset($request['token']) )
+			$account->token = $request['token'];
 
-			// update user details
-			$account->updateUserDetails();
+		if ( isset($request['active']))
+			$account->active = $request['active'];
+		else 
+			$account->active = 1;
+		
+		$account->add();
+		
+		// set enabled flag for site
+		$site = WPLE_eBaySite::getSiteObj($account->site_id);
+		$site->enabled = 1;
+		$site->update();	
 
-			// set default account automatically
-			if ( ! get_option( 'wplister_default_account_id' ) ) {
-				update_option( 'wplister_default_account_id', $account->id );
-				$this->make_default( array( "id" => $account->id ) );
-			}
+		// update user details
+		//$account->updateUserDetails();
 
-			//return true;
-		} else {
-			//return false;
+		// set default account automatically
+		if ( ! get_option( 'wplister_default_account_id' ) ) {
+			update_option( 'wplister_default_account_id', $account->id );
+			$this->make_default( array( "id" => $account->id ) );
 		}
+
+		return $account->id;
 		
 	}
 
@@ -539,39 +539,6 @@ class WPLE_REST_Accounts_Controller extends WPL_Core {
 		update_option( 'wplister_categories_map_store', 		maybe_unserialize( $account->categories_map_store ) );
 
 		return true;
-	}
-
-	// ================================ PUT /accounts/id/fetchtoken ================================ 
-
-	/**
-	 * Fetch token for this account
-	 *
-	 * @param WP_REST_Request $request Full details about the request
-	 * @return WP_Error|WP_REST_Response
-	 */
-	public function fetch_token( $request ) {
-
-		$account_id = $request['id'];
-
-		// call FetchToken
-		$this->initEC( $account_id );
-		$ebay_token = $this->EC->doFetchToken( $account_id );
-		$this->EC->closeEbay();
-
-		// check if we have a token
-		if ( $ebay_token ) {
-
-			// update token expiry date (and other details)
-			$this->updateAccount( $account_id );
-
-			// update legacy option
-			update_option( 'wplister_ebay_token_is_invalid', false );
-
-			return true;
-		} else {
-			return false;
-		}
-	
 	}
 
 	// ================================ POST /accounts/dev ================================ 

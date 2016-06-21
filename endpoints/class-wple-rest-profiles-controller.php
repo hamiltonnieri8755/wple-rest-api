@@ -22,6 +22,13 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	protected $rest_base;
 
 	/**
+	 * Array of profile fields
+	 *
+	 * @var array
+	 */
+	protected $profile_fields;
+
+	/**
 	* __construct
 	* 
 	* Builds the WPL_REST_Profiles_Controller
@@ -33,6 +40,20 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	public function __construct() {
 		$this->namespace = 'wplister';
 		$this->rest_base = 'profiles';
+
+		$this->profile_fields = array(
+			"profile_id",
+			"profile_name",
+			"profile_description",
+			"listing_duration",
+			"type",
+			"sort_order",
+			"details",
+			"conditions",
+			"category_specifics",
+			"account_id",
+			"site_id"
+		);
 	}
 
 	/**
@@ -45,13 +66,15 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_profiles' ),
 				'permission_callback' => array( $this, 'manage_profiles_permission_callback' ),
-				'validation_callback' => array( $this, 'get_profiles_validation_callback' )
+				'args' => array( 'fields' => array( 'validate_callback' => array( $this, 'validate_profile_fields' ) ),
+								 'orderby' => array( 'validate_callback' => array( $this, 'validate_profile_fields' ) ),
+								 'page' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ),
+								 'per_page' => array( 'validate_callback' => array( $this, 'validate_numeric_field' ) ) )
 			),
 			array(
 				'methods'         => WP_REST_Server::CREATABLE,
 				'callback'        => array( $this, 'create_profile' ),
-				'permission_callback' => array( $this, 'manage_profiles_permission_callback' ),
-				'validation_callback' => array( $this, 'create_profile_validation_callback' )
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' )
 			)
 		) );
 
@@ -59,7 +82,8 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 			array(
 				'methods'         => WP_REST_Server::READABLE,
 				'callback'        => array( $this, 'get_profile' ),
-				'permission_callback' => array( $this, 'manage_profiles_permission_callback' )
+				'permission_callback' => array( $this, 'manage_profiles_permission_callback' ),
+				'args' => array( 'fields' => array( 'validate_callback' => array( $this, 'validate_profile_fields' ) ) )
 			),
 			array(
 				'methods'         => WP_REST_Server::EDITABLE,
@@ -127,17 +151,37 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 
 	}
 
-	// ================================ GET /profiles ================================ 
+	// ============================= Validation Callback ============================= 
 
 	/**
-	 * Check if a given request is correct
+	 * Check if a given fields is correct
 	 *
 	 * @param  WP_REST_Request $request Full details about the request
 	 * @return WP_Error|boolean
 	 */
-	public function get_profiles_validation_callback( $request ) {
+	public function validate_profile_fields( $param, $request, $key ) {
+		$fields = explode( ",", $param );
+		foreach ( $fields as $field ) {
+			if ( ! in_array($field, $this->profile_fields) )
+				return false;
+		}
 		return true;
 	}
+
+	/**
+	 * Check if a given fields is numeric
+	 *
+	 * @param  WP_REST_Request $request Full details about the request
+	 * @return WP_Error|boolean
+	 */
+	public function validate_numeric_field( $param, $request, $key ) {
+		if ( is_numeric($param) )
+			return true;
+		else 
+			return false;
+	}
+
+	// ================================ GET /profiles ================================ 
 
 	/**
 	 * Get a collection of profiles
@@ -216,16 +260,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	// ================================ GET /profiles/id ================================ 
 
 	/**
-	 * Check if a given request is correct
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function get_profile_validation_callback( $request ) {
-		return true;
-	}
-
-	/**
 	 * Get a specific profile
 	 *
 	 * @param WP_REST_Request $request Full data about the request.
@@ -236,12 +270,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 		// Get Params
 		$args                 = array();
 		$args['fields']       = explode( ",", $request['fields'] );
-		$args['orderby']      = $request['orderby'];
-		$args['page']         = $request['page'];
-		$args['per_page']     = $request['per_page'];
-		$args['conditions']   = $request['conditions'];
-		$args['account_id']   = $request['account_id'];
-		$args['site_id']      = $request['site_id'];
 
 		$id = (int) $request['id'];
 
@@ -266,32 +294,7 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 
 		$query['from']   = "FROM {$wpdb->prefix}ebay_profiles";
 
-		$query['where'] = "WHERE id={$id}";
-
-		if ( ! empty($args['conditions']) ) {
-			$query['where'] .= " AND conditions={$args['conditions']}";
-		}
-
-		if ( ! empty($args['account_id']) ) {
-			$query['where'] .= " AND account_id={$args['account_id']}";
-		}
-
-		if ( ! empty($args['site_id']) ) {
-			$query['where'] .= " AND site_id={$args['site_id']}";
-		}
-		
-		if ( ! empty($args['type']) ) {
-			$query['where'] .= " AND type={$args['type']}";
-		}
-
-		if ( ! empty($args['orderby']) ) {
-			$query['orderby'] = "ORDER BY {$args['orderby']}";			
-		}
-
-		if ( ! empty($args['page']) && ! empty($args['per_page']) ) {
-			$offset = ( $args['page'] - 1 ) * $args['per_page'];
-			$query['limit'] = "LIMIT {$offset}, {$args['per_page']}";
-		}
+		$query['where'] = "WHERE profile_id={$id}";
 
 		$query = implode( " ", $query );
 
@@ -302,16 +305,6 @@ class WPLE_REST_Profiles_Controller extends WPL_Core {
 	}
 
 	// ================================ POST /profiles ================================ 
-
-	/**
-	 * Check if a given request has access to create /profiles
-	 *
-	 * @param  WP_REST_Request $request Full details about the request
-	 * @return WP_Error|boolean
-	 */
-	public function create_profile_validation_callback( $request ) {
-		return true;
-	}
 
 	/**
 	 * Create a profile
